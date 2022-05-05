@@ -1,0 +1,309 @@
+/*
+ Nome do Projecto: Sistema de Monitoramento de Água
+ Nome dos Criadores: Aldair Avelino, Alfredo Simão, João Sunda
+
+*/
+
+//Inclusão das Bibliotecas
+#include<Wire.h>
+#include<NewPing.h>
+#include<LiquidCrystal_I2C.h>
+
+//Declaração dos pinos do Ultrassonico e valor da distância máxima
+
+#define TRIGGER_PIN  12
+#define ECHO_PIN     11
+#define MAX_DISTANCE 22.5
+
+//Declaração dos Objectos das Bibliotecas acima
+
+NewPing ultrassonico(TRIGGER_PIN,ECHO_PIN,MAX_DISTANCE);
+LiquidCrystal_I2C lcd(0x27,20,4);
+
+//Declaração de Variáveis e Constantes do ultrassonico e do tanque principal
+
+int intervaloMedicao = 150;          //Valor em segundos
+unsigned long tempoMedicao;             // Tempo de medição em milisegundos
+int distanciaUltrassonicoAgua = 0;    //Distância da água em relaçao ao ultrassonico
+int altura;                     //altura da água
+int volume;
+float litros;
+#define alturaTanque 22.5        //O tanque tem 22.5cm de altura
+#define comprimentoTanque 18.5  // O tanque tem 18.5cm de comprimento
+#define larguraTanque 11.5     //O tanque tem 11.5cm de largura
+
+//Declaração de variáveis e constantes do tanque reserva
+#define buzzer 2
+boolean estado=true;
+uint8_t tanqueReservaVazio=4;
+uint8_t tanqueReservaCheio=5;
+
+//Declaração do motor
+#define motor 6
+
+//Declaração dos botões e do count
+#define btnBuzzer 3
+#define btnManutencao 7
+int count=0;
+
+
+byte emojetriste[8] = {
+  B00000,
+  B10001,
+  B00000,
+  B00000,
+  B01110,
+  B10001,
+  B00000,
+  B00000,
+};
+
+byte iconSucesso[8]={
+  B00000,
+  B00001,
+  B00010,
+  B10100,
+  B01000,
+  B00000,
+  B00000,
+  B00000,
+};
+
+byte corpoBateria[8] ={
+  B00000,
+  B01110,
+  B11111,
+  B10001,
+  B10001,
+  B10001,
+  B10001,
+  B11111,
+};
+
+byte bateriaNivel1[8] ={
+  B00000,
+  B01110,
+  B11111,
+  B10001,
+  B10001,
+  B10001,
+  B11111,
+  B11111,
+};
+
+byte bateriaNivel2[8] ={
+  B00000,
+  B01110,
+  B11111,
+  B10001,
+  B10001,
+  B11111,
+  B11111,
+  B11111,
+};
+
+byte bateriaNivel3[8] ={
+  B00000,
+  B01110,
+  B11111,
+  B10001,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+};
+
+byte bateriaNivel4[8] ={
+  B00000,
+  B01110,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+};
+
+void setup() {
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+  lcd.createChar(1, emojetriste);
+  lcd.createChar(2,corpoBateria);
+  lcd.createChar(3,bateriaNivel1);
+  lcd.createChar(4,bateriaNivel2);
+  lcd.createChar(5,bateriaNivel3);
+  lcd.createChar(6,bateriaNivel4);
+  tempoMedicao=millis();
+  pinMode(motor,OUTPUT);
+  pinMode(btnBuzzer,INPUT_PULLUP);
+  pinMode(btnManutencao,INPUT_PULLUP);
+  pinMode(tanqueReservaVazio,INPUT);
+  pinMode(tanqueReservaCheio,INPUT);
+
+  lcd.setCursor(5,0);
+  lcd.print("Sistema de");
+
+  lcd.setCursor(0,1);
+  lcd.print("Monitoramento de");
+
+  lcd.setCursor(0,2);
+  lcd.print("Reservatorio de Agua");
+
+  lcd.setCursor(0,3);
+  lcd.print("Carregando");
+  lcd.setCursor(17,3);
+  lcd.print(".");
+  delay(1000);
+  lcd.setCursor(18,3);
+  lcd.print(".");
+  delay(2000);
+  lcd.setCursor(19,3);
+  lcd.print(".");
+  delay(500);
+
+  
+  
+}
+
+void loop() {
+  if(millis() >= tempoMedicao){
+    tempoMedicao+=intervaloMedicao;
+    ultrassonico.ping_timer(resultadoMedicacao);
+
+    /*lcd.setCursor(0,0);
+    Serial.print("Tanque Principal: ");
+    lcd.setCursor(0,2);
+    Serial.println(distanciaUltrassonicoAgua);
+    lcd.print("L");*/
+  }
+}
+
+void resultadoMedicacao(){
+  if(ultrassonico.check_timer()){
+    distanciaUltrassonicoAgua = ultrassonico.ping_result / US_ROUNDTRIP_CM;
+    altura = alturaTanque - distanciaUltrassonicoAgua;
+    volume = altura * larguraTanque * comprimentoTanque;
+    litros = volume / 1000;
+  }
+}
+
+void estadoTanque(){
+  //Com Água LOW
+  //Sem Água HIGH
+  if((litros<=1) && (digitalRead(tanqueReservaVazio==LOW))){ //se tanque principal tiver apenas 1litro E se o tanque resevar tiver água, então transporta água
+    //Vazio
+    digitalWrite(motor,LOW);  //liga electrobomba
+    delay(50);
+    lcd.home();
+    lcd.print("**Tanque Principal**");
+    lcd.setCursor(2,1);
+    lcd.print("Enchendo ");
+    lcd.print(litros);
+    lcd.print("L ");
+    
+    lcd.setCursor(16,1);
+    lcd.write(2);
+    delay(500);
+    
+    lcd.setCursor(16,1);
+    lcd.write(3);
+    delay(500);
+    
+    lcd.setCursor(16,1);
+    lcd.write(4);
+    delay(500);
+
+    lcd.setCursor(16,1);
+    lcd.write(5);
+    delay(500);
+
+    lcd.setCursor(16,1);
+    lcd.write(6);
+    delay(500);    
+  }
+
+  if(litros<5){   //Usando Água
+    lcd.setCursor(0,1);
+    lcd.print("Litros: ");
+    lcd.print(litros);
+    lcd.print(" l")
+  }
+
+  if(litros>=5 || tanqueReservaVazio==HIGH){
+      //>1Litro || Cheio
+      //desliga electrobomba
+      digitalWrite(motor,HIGH);    //desliga electrobomba
+      delay(50);
+      if((digitalRead(tanqueReservaVazio==HIGH)) && (estado==true)){
+        //ligando buzzer
+        alarme();
+        if(!digitalRead(btnBuzzer)){
+          delay(50);
+          estado=false;
+        }
+      }
+      if (litros>=5){
+        lcd.home();
+        lcd.print("**Tanque Principal**");
+        lcd.setCursor(7,1);
+        lcd.print("Cheio!");
+      }
+      
+      else if(digitalRead(tanqueReservaVazio==HIGH)){
+        lcd.setCursor(0,2);
+        lcd.print("Tanq. Reser. Vazio!");
+        lcd.setCursor(9,3);
+        lcd.write(1);
+      }
+  }
+  if((digitalRead(tanqueReservaVazio)==HIGH) && (digitalRead(tanqueReservaCheio)==LOW)){
+    delay (100);
+    lcd.setCursor(0,2);
+    Serial.println("Opah, tem uma falha no sensor 1");
+  }
+
+  if(digitalRead(tanqueReservaCheio==LOW)){
+    delay(50);
+    estado=true;
+    lcd.setCursor(0,2);
+    lcd.print("Tanq. Reser. Cheio!");
+  }
+  //tanqueReservaVazio
+  //tanqueReservaCheio
+}
+
+void alarme(){
+  //void alarmeBuzzer()
+  digitalWrite(buzzer,HIGH);
+  delay(150);
+  digitalWrite(buzzer,LOW);
+  delay(150);
+  digitalWrite(buzzer,HIGH);
+  delay(150);
+  digitalWrite(buzzer,LOW);
+  delay(150);
+}
+
+void manutencao(){
+  if(!digitalRead(btnManutencao)){
+    delay(330);
+    count++;
+  }
+
+  switch(count){
+    case 0: delay(100);
+            estadoTanque();
+            break;
+    case 1: delay(100);
+            lcd.clear();
+            lcd.setCursor(3,1);
+            lcd.print("Modo Manutencao");
+            lcd.setCursor(7,2);
+            lcd.print("Activo");
+            break;
+    case 2: delay(100);
+            count=0;
+            break;
+  }
+}
