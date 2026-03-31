@@ -34,11 +34,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
-    host: '0.0.0.0',
-    port: parseInt(process.env.VITE_PORT || '3000'),
+    host: true,
+    port: 3001,
     proxy: {
       '/api': {
-        target: `http://localhost:8000`,
+        target: `http://127.0.0.1:3000`,
         changeOrigin: true,
       },
     },
