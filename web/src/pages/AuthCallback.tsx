@@ -3,7 +3,12 @@ import { client } from '../lib/api';
 
 export default function AuthCallback() {
   useEffect(() => {
-    client.auth.login();
+    // client.auth.login();
+    console.log('Authentication processing (mock)...');
+    // For now, let's just simulate success and redirect
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1000);
   }, []);
 
   return (
